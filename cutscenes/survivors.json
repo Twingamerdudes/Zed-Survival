@@ -1,0 +1,17 @@
+{
+    "ActorSerials": [
+        "PSQUAD0"
+    ],
+	"Steps": [
+		{
+			"Grunt": {
+				"Blurb": "Is anyone here!"
+			}
+        },
+        {
+            "PSQUAD0": {
+                "Blurb": "Hey I'm here, I'm coming to you!"
+            }
+        }
+	]
+}
