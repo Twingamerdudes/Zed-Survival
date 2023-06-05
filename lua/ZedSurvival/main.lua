@@ -1,209 +1,136 @@
-local level = 1
-local normalZedAttack
 local activated = false
-local Victim = nil
-local ZedsKilled = 0
-local multiplier = 1
-local SquadName
-local ZombieCount = 0
-local Retries = 0
-local wasDuo = false
+local time = 4
+local zombieStrength = 4 -- 4 + 1 = 5
+local zombieLethality = 2 -- 2 + 1 = 3
+local zombiesKilled = 0
+local zombies = 0
+local capZombies = true
+local maxZombies = 40
+local roster = nil
+local survivor = nil
+local swarmCount = 1
 function Start()
-
+    roster = GetSquadRoster(GetSquadName(Player))
 end
 
-function SetupZombie(zombie)
-    if zombie == nil or not Exists(zombie) then
-        Retries = Retries + 1
-        if Retries == 3 then
-            ZombieCount = ZombieCount - 1
-            Retries = 0
+function Cutscene(duo)
+    PlayCutscene("start.json", nil, true, 400)
+end
+
+function SpawnZombie(originalZombie)
+    if zombies >= maxZombies then
+        if capZombies then
+            RunAfter(1, "SpawnZombie", {originalZombie})
             return
         end
-        SetupZombie(zombie)
-        return
     end
-    ChangeProperty(zombie, {math.ceil(10 * multiplier / 2.2)}, "strength")
-    RemoveFromSquad(zombie)
-    AddToSquad(SquadName, zombie)
-    math.randomseed(os.time())
-    ChangeProperty(zombie, {Player}, "target")
-    multiplier = multiplier + 1
+    zombies = zombies + 1
+    local zed = SpawnCharacterAtEntrance("Zed", true, Factions.Zeds)
+    if Exists(zed) then
+        zombieStrength = zombieStrength + 1
+        ChangeProperty(zed, {zombieStrength}, "strength")
+        zombieLethality = zombieLethality + 1
+        ChangeProperty(zed, {zombieLethality}, "lethality")
+    end
+    if time > 3 then
+        time = time - 0.05
+    end
+    if originalZombie then
+        for i = 1, swarmCount do
+            if i == 1 then
+                RunAfter(time, "SpawnZombie", {true})
+            else
+                RunAfter(time, "SpawnZombie", {false})
+            end
+        end
+    end
 end
 
-function Zombies()
-    ZombieCount = ZombieCount + 1
-    local zed = SpawnCharacterAtEntrance("Zed", true)
-    RunAfter(1, "SetupZombie", {zed})
-    return zed
-end
-
-
-function ZombiesAgent(pos)
-    ZombieCount = ZombieCount + 1
-    local zed = SpawnCharacter("Zed Agent", pos, true)
-    RunAfter(1, "SetupZombie", {zed})
-    return zed
-end
-
-function ZombiesPos(pos)
-    ZombieCount = ZombieCount + 1
-    local zed = SpawnCharacter("Zed", pos, true)
-    RunAfter(1, "SetupZombie", {zed})
-    return zed
-end
-
-function ZombieLeader()
-    ZombieCount = ZombieCount + 1
-    local zed = SpawnCharacterAtEntrance("Zed", true)
-    SquadName = GetSquadName(zed)
-    RunAfter(1, "SetupZombie", {zed})
-    return zed
-end
 function Callback(ctype, args)
-    if ctype == "death" and activated then
-        if string.match(args[1], "Zed") or string.match(args[1], "Zed Agent") then
-            ZedsKilled = ZedsKilled + 1
-            ZombieCount = ZombieCount - 1
-            for i = 1, ZedsKilled + 1 do
-                if ZombieCount <= 10 then
-                    Zombies()
+    if activated then
+        if ctype == "death" then
+            if string.find(args[1], "Zed") then
+                zombiesKilled = zombiesKilled + 1
+                zombies = zombies - 1
+                if zombies < 0 then
+                    zombies = 0
+                end
+                if maxZombies < 150 then
+                    maxZombies = math.max(maxZombies, zombiesKilled)
+                end
+                if zombiesKilled % 7 == 0 then
+                    swarmCount = swarmCount + 1
                 end
             end
-        elseif string.match(args[1], "Agent") and string.match(args[2], "Zed") then
-            local pos = GetProperty(args[1], "position")
-            Destroy(args[1])
-            ZombieCount = ZombieCount + 1
-            ZombiesAgent(pos)
-        elseif string.match(args[2], "Zed") then
-            local pos = GetProperty(args[1], "position")
-            Destroy(args[1])
-            ZombieCount = ZombieCount + 1
-            ZombiesPos(pos)
-        elseif args[1] == Player then
-            WriteToFile("highscore.txt", ZedsKilled)
-            --kill all survivors
-            for i = 1, #PlayerRoster do
-                if PlayerRoster[i] != Player then
-                    ChangeProperty(PlayerRoster[i], {"dead", true}, "state")
+            if args[1] == Player then
+                if not FileExists("highscore.txt") then
+                    WriteToFile("highscore.txt", zombiesKilled)
+                else
+                    local highscore = ReadFile("highscore.txt")
+                    if tonumber(highscore) < zombiesKilled then
+                        WriteToFile("highscore.txt", zombiesKilled)
+                    end
+                end
+                for i = 1, #roster do
+                    ChangeProperty(roster[i], {"dead", true}, "state")
                 end
             end
         end
-    end
-    if ctype == "character" and activated then
-        if string.match(args[1], "Zed") and Victim == nil then
-            ZombieCount = ZombieCount + 1
-            Victim = args[1]
-            ZombieLeader()
-            SetupZombie(Victim)
-        else
-            if string.match(args[1], "Zed") then
-                ZombieCount = ZombieCount + 1
-                SetupZombie(args[1])
-            end
-        end
-    end
-end
-function Cutscene(duo)
-    if duo then
-        if PlayerRoster[1] != Player then
-            PlayCutscene("good.json", nil, true, 400)
-        else
-            PlayCutscene("good2.json", nil, true, 400)
-        end
-    else
-        PlayCutscene("start.json", nil, true, 401)
     end
 end
 
-function SetupSurvior(Survivor)
-    if not Exists(Survivor) then
-        RunAfter(1, "SetupSurvior", {Survivor})
+
+function SpawnSurvivor()
+    if zombiesKilled < -15 + (#roster * 11) then
+        RunAfter(1, "SpawnSurvivor")
         return
     end
-    local weapon = ReturnRandomObject("weapon")
-    if weapon[1] != "None" then
-        if weapon[1] == "Thrown" then
-            while weapon[1] != "Thrown" do
-                weapon = ReturnRandomObject("weapon")
+    local character = ReturnRandomObject("character")
+    survivor = SpawnCharacterAtEntrance(character[1], true, Factions.Player)
+    if not Exists(survivor) then
+        --destroy everything that isn't a zed or in a player squad
+        local all = GetAllCharacters(true)
+        for i = 1, #all do
+            if not string.find(all[i], "Zed") and not string.find(GetSquadName(all[i]), "Player") then
+                Destroy(all[i])
             end
         end
-        ChangeProperty(Survivor, {weapon[1], weapon[2]}, "weapon")
+        RunAfter(1, "SpawnSurvivor")
+        return
     end
-    weapon = ReturnRandomObject("weapon")
-    if weapon[1] != "None" then
-        ChangeProperty(Survivor, {weapon[1], weapon[2], 1, 0}, "weapon")
-    end
-    RemoveFromSquad(Survivor)
-    AddToSquad(GetSquadName(Player), Survivor)
-    ChangeProperty(Survivor, {18.0}, "corpushp")
-    ChangeProperty(Survivor, {GetProperty(Survivor, "strength") * 2}, "strength")
-    ChangeProperty(Survivor, {GetProperty(Survivor, "lethality") * 2}, "lethality")
-    if wasDuo then
-        if PlayerRoster[1] != Player then
-            PlayCutscene("survivors.json", {Survivor})
-        else
-            PlayCutscene("survivors2.json", {Survivor})
+    AddSerial(survivor, "survivor")
+    PlayCutscene("survivors.json", {survivor}, true, 190)
+    AddToSquad(GetSquadName(Player), survivor)
+    roster = GetSquadRoster(GetSquadName(Player))
+    local weapon = ReturnRandomObject("weapon")
+    if weapon[1] == "None" then
+        while weapon[1] == "None" do
+            weapon = ReturnRandomObject("weapon")
         end
-    else
-        PlayCutscene("survivors.json", {Survivor})
     end
-    math.randomseed(os.time())
-end
-function SpawnSurvior()
-    if ZedsKilled < 10 + (#PlayerRoster * 11) then
-        RunAfter(math.random(5, 8), "SpawnSurvior", {})
-    else
-        local Survivor = SpawnCharacterAtEntrance("Grunt", true)
-        RunAfter(1, "SetupSurvior", {Survivor})
-        RunAfter(math.random(5, 8), "SpawnSurvior", {})
-    end
-end
-
-function TurnIntoZombie()
-    local characters = GetAllCharacters(true)
-    --pick random character and turn them into a zombie
-    math.randomseed(os.time())
-    local character = characters[math.random(1, #characters)]
-    if character != Player then
-        ChangeProperty(character, {"Zed"}, "character")
-    else
-        TurnIntoZombie()
-    end
-    RunAfter(math.random(5, 8), "TurnIntoZombie")
+    ChangeProperty(survivor, {weapon[1], weapon[2]}, "weapon")
+    RunAfter(8, "SpawnSurvivor")
 end
 function CutsceneCallback(id)
     if id == 400 then
-        PlayMusic("event:/Music/Locknar/Blood Bath")
-        local victimPos = nil
-        if PlayerRoster[1] != Player then
-            victimPos = GetProperty(PlayerRoster[1], "position")
-        else
-            victimPos = GetProperty(PlayerRoster[2], "position")
-        end
-        if PlayerRoster[1] != Player then
-            ChangeProperty(PlayerRoster[1], {"Zed"}, "character")
-        else
-            ChangeProperty(PlayerRoster[2], {"Zed"}, "character")
-        end
-        math.randomseed(os.time())
-        RunAfter(math.random(5, 8), "SpawnSurvior", {})
-        RunAfter(5, "TurnIntoZombie")
-    elseif id == 401 then
         PlayMusic("event:/Music/Locknar/Blood Son")
-        Victim = Zombies()
-        SquadName = GetSquadName(Victim)
-        math.randomseed(os.time())
-        --SpawnSurvior()
-        RunAfter(math.random(5, 8), "SpawnSurvior", {})
-        RunAfter(5, "TurnIntoZombie")
+        local zed = SpawnCharacterAtEntrance("Zed", true, Factions.Zeds)
+        zombies = zombies + 1
+        if Exists(zed) then
+            zombieStrength = GetProperty(zed, "strength")
+            zombieLethality = GetProperty(zed, "lethality")
+        end
+        RunAfter(5, "SpawnZombie", {true})
+        RunAfter(8, "SpawnSurvivor")
+        activated = true
+    elseif id == 190 then
+        RemoveSerial(survivor, "survivor")
     end
 end
+
 function ButtonCallback(id)
     if id == 69 then
-        wasDuo = #PlayerRoster == 2
-        RunAfter(1, "Cutscene", {wasDuo})
-        activated = true
+        RunAfter(1, "Cutscene")
     elseif id == 800 then
         if FileExists("highscore.txt") then
             local highscore = ReadFile("highscore.txt")
@@ -211,10 +138,18 @@ function ButtonCallback(id)
         else
             CreateMenuUI("Highscore", "No highscore yet", {"Ok"}, {900})
         end
+    elseif id == 900 then
+        capZombies = false
+    elseif id == 1000 then
+        capZombies = true
     end
 end
+
 function Update()
     if GetKeyDown("Semicolon") and not activated then
         CreateMenuUI("Are you sure you want to run this mod?", "This mod will make you unable to progress in the current stage, you will have to restart the stage to play normally again. Are you sure you want to do this?", {"Yes", "No", "Checkout highscore"}, {69, 420, 800})
+    end
+    if GetKeyDown("Quote") and not activated then
+        CreateMenuUI("Zombie survival settings", "Configure settings for zombie survival", {"Infinite zombies (god PC)", "40 zombies max"}, {900, 1000})
     end
 end

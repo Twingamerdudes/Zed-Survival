@@ -1,15 +1,16 @@
 {
     "ActorSerials": [
-        "PSQUAD0"
+        "PSQUAD0",
+        "survivor"
     ],
 	"Steps": [
 		{
-			"Grunt": {
+			"survivor": {
 				"Blurb": "Is anyone here!"
 			}
         },
         {
-            "PSQUAD0": {
+            "PLAYER": {
                 "Blurb": "Hey I'm here, I'm coming to you!"
             }
         }
