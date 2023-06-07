@@ -14,7 +14,15 @@ function Start()
 end
 
 function Cutscene(duo)
-    PlayCutscene("start.json", nil, true, 400)
+    if duo then
+        if roster[1] == Player then
+            PlayCutscene("good.json", nil, true, 401)
+        else
+            PlayCutscene("good2.json", nil, true, 401)
+        end
+    else
+        PlayCutscene("start.json", nil, true, 400)
+    end
 end
 
 function SpawnZombie(originalZombie)
@@ -125,12 +133,32 @@ function CutsceneCallback(id)
         activated = true
     elseif id == 190 then
         RemoveSerial(survivor, "survivor")
+    elseif id == 401 then
+        PlayMusic("event:/Music/Locknar/Blood Bath")
+        local zed = nil
+        if roster[1] == Player then
+            zed = roster[2]
+        else
+            zed = roster[1]
+        end
+        RemoveFromSquad(zed)
+        SetFaction(zed, Factions.Zeds)
+        MakeSquad("Victim squad", zed, Factions.Zeds)
+        ChangeProperty(zed, {"Zed"}, "character")
+        zombies = zombies + 1
+        if Exists(zed) then
+            zombieStrength = GetProperty(zed, "strength")
+            zombieLethality = GetProperty(zed, "lethality")
+        end
+        RunAfter(5, "SpawnZombie", {true})
+        RunAfter(8, "SpawnSurvivor")
+        activated = true
     end
 end
 
 function ButtonCallback(id)
     if id == 69 then
-        RunAfter(1, "Cutscene")
+        RunAfter(1, "Cutscene", {#roster == 2})
     elseif id == 800 then
         if FileExists("highscore.txt") then
             local highscore = ReadFile("highscore.txt")

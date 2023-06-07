@@ -1,0 +1,28 @@
+{
+    "ActorSerials": [
+        "PSQUAD0",
+        "PSQUAD1"
+    ],
+	"Steps": [
+		{
+			"PSQUAD1": {
+				"Blurb": "Yo bud, I'm not feeling so good."
+			}
+		},
+		{
+			"PSQUAD0": {
+				"Blurb": "You sure you didn't get bit?"
+			}
+		},
+        {
+            "PSQUAD1": {
+                "Blurb": "Um, about that..."
+            }
+        },
+        {
+            "PSQUAD0": {
+                "Blurb": "Fuck"
+            }
+        }
+	]
+}
