@@ -6,4 +6,7 @@ Install [NEM](https://drive.google.com/drive/folders/1COW73fbzlPJStjU-nJ1SMbNf8_
 
 Then drag the contents of each folder into the corresponding folders inside of (M:PN dir)/Madness Project Nexus_Data/Custom Stuff
 ## Controls
-Use ; to activate the GameMode, have fun!
+Use ; to activate the GameMode.
+
+Use ' to change settings.
+Hope you enjoy!
